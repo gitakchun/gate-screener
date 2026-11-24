@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gate 선물 스크리너</title>
+<style>
+  :root {
+    --bg: #f7f7f8; --panel: #fff; --text: #17181a; --muted: #6b6f76; --line: #e4e5e8;
+    --up: #d6336c; --down: #1c7ed6; --accent: #2f6fed; --chip: #eef1f6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #111214; --panel: #1a1b1e; --text: #e8e9eb; --muted: #8b9098; --line: #2a2c30;
+            --up: #ff6b8b; --down: #5aa9ff; --accent: #6b9bff; --chip: #24262b; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Segoe UI", sans-serif;
+         background: var(--bg); color: var(--text); }
+  header { display: flex; align-items: baseline; gap: 12px; padding: 18px 24px 6px; flex-wrap: wrap; }
+  h1 { font-size: 18px; margin: 0; }
+  #status { color: var(--muted); font-size: 13px; }
+  .wrap { padding: 0 24px 40px; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin: 10px 0 14px; }
+  .filters { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px 16px; }
+  label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+  .pair { display: flex; gap: 6px; }
+  input, select { font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line);
+                  border-radius: 6px; padding: 6px 8px; width: 100%; min-width: 0; }
+  input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .presets { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; align-items: center; }
+  .presets span { font-size: 12px; color: var(--muted); margin-right: 4px; }
+  button { font: inherit; font-size: 13px; border: 1px solid var(--line); background: var(--chip); color: var(--text);
+           border-radius: 999px; padding: 4px 12px; cursor: pointer; }
+  button:hover { border-color: var(--accent); }
+  .summary { margin: 0 2px 8px; color: var(--muted); font-size: 13px; }
+  .summary b { color: var(--text); }
+  table { width: 100%; border-collapse: collapse; background: var(--panel); }
+  th, td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+  th { font-size: 12px; color: var(--muted); font-weight: 600; cursor: pointer; user-select: none; position: sticky; top: 0; background: var(--panel); }
+  th.sorted { color: var(--text); }
+  th:first-child, td:first-child { text-align: left; }
+  td { font-variant-numeric: tabular-nums; }
+  tr:hover td { background: var(--chip); }
+  a { color: var(--text); text-decoration: none; font-weight: 600; }
+  a:hover { color: var(--accent); }
+  .up { color: var(--up); } .down { color: var(--down); } .muted { color: var(--muted); }
+  .new { font-size: 11px; color: var(--muted); font-weight: 400; margin-left: 4px; }
+  .empty { text-align: center; color: var(--muted); padding: 40px; }
+  svg.spark { vertical-align: middle; }
+  .tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+  tbody tr:last-child td { border-bottom: none; }
+  td.daystart { border-left: 1px solid var(--line); }
+  details > summary { cursor: pointer; font-weight: 600; font-size: 13px; list-style: none; }
+  details > summary::-webkit-details-marker { display: none; }
+  details > summary::before { content: "▸ "; color: var(--muted); }
+  details[open] > summary::before { content: "▾ "; }
+  details[open] > summary { margin-bottom: 12px; }
+  #cond_summary { font-weight: 400; color: var(--muted); margin-left: 6px; }
+  /* 첫 열(종목) 고정: 가로 스크롤해도 종목명이 보이게 */
+  th:first-child, td:first-child { position: sticky; left: 0; background: var(--panel); z-index: 1; }
+  th:first-child { z-index: 2; }
+  tr:hover td:first-child { background: var(--chip); }
+  @media (max-width: 700px) {
+    header { padding: 12px 12px 4px; }
+    .wrap { padding: 0 12px 30px; }
+    .filters { grid-template-columns: 1fr 1fr; gap: 8px 10px; }
+    th, td { padding: 7px 8px; font-size: 13px; }
+    th[data-k="spark"], td.spark { display: none; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Gate USDT 선물 스크리너</h1>
+  <div id="status">불러오는 중…</div>
+</header>
+<div class="wrap">
+  <details class="panel" id="cond" open>
+    <summary>조건 설정<span id="cond_summary"></span></summary>
+    <div class="filters">
+      <label>기간 (일)
+        <input id="days" type="number" min="1" max="7" step="1" value="5">
+      </label>
+      <label>상승률 기준
+        <select id="basis">
+          <option value="change_n">N일 전 가격 대비 현재</option>
+          <option value="from_low_n">N일 내 저점 대비 현재</option>
+          <option value="max_runup_n">N일 내 저점→고점 최대 상승</option>
+        </select>
+      </label>
+      <label>N일 상승률 (%)
+        <div class="pair"><input id="rise_min" type="number" placeholder="최소"><input id="rise_max" type="number" placeholder="최대"></div>
+      </label>
+      <label>24시간 변동률 (%)
+        <div class="pair"><input id="c24_min" type="number" placeholder="최소"><input id="c24_max" type="number" placeholder="최대"></div>
+      </label>
+      <label>24시간 거래대금 최소 (USDT)
+        <input id="vol_min" type="number" min="0" placeholder="예: 1000000">
+      </label>
+      <label>거래량 배수 최소 (직전 7일 평균 대비)
+        <input id="vr_min" type="number" min="0" step="0.1" placeholder="예: 3">
+      </label>
+      <label>펀딩비 (%)
+        <div class="pair"><input id="fr_min" type="number" step="0.01" placeholder="최소"><input id="fr_max" type="number" step="0.01" placeholder="최대"></div>
+      </label>
+      <label>종목 검색
+        <input id="q" type="text" placeholder="예: BTC">
+      </label>
+      <label>정렬
+        <div class="pair"><select id="sort"></select><select id="dir"><option value="-1">높은 순</option><option value="1">낮은 순</option></select></div>
+      </label>
+      <label>일별 상승률 (한국시간 자정 기준)
+        <select id="show_daily"><option value="1">표시</option><option value="0">숨김</option></select>
+      </label>
+    </div>
+    <div class="presets">
+      <span>빠른 조건</span>
+      <button data-preset="rise100">5일 100%↑</button>
+      <button data-preset="volspike">거래량 3배↑ + 24h +10%↑</button>
+      <button data-preset="dump">24h -15%↓</button>
+      <button data-preset="clear">조건 초기화</button>
+    </div>
+  </details>
+
+  <div class="summary" id="summary"></div>
+  <div class="tablewrap">
+    <table>
+      <thead><tr id="head"></tr></thead>
+      <tbody id="body"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+const FIELDS = ["days","basis","rise_min","rise_max","c24_min","c24_max","vol_min","vr_min","fr_min","fr_max","q","show_daily"];
+const KEEP = ["show_daily"];   // 빠른 조건을 눌러도 유지되는 표시 설정
+const DEFAULTS = { days: "5", basis: "change_n", rise_min: "100", show_daily: "1" };
+const PRESETS = {
+  rise100:  { days: "5", basis: "change_n", rise_min: "100" },
+  volspike: { days: "5", basis: "change_n", vr_min: "3", c24_min: "10" },
+  dump:     { days: "5", basis: "change_n", c24_max: "-15" },
+  clear:    { days: "5", basis: "change_n" },
+};
+const GATE = "https://api.gateio.ws/api/v4/futures/usdt";
+const KST = 9 * 3600;
+let snap = null;          // data.json: GitHub Actions가 만든 시간봉 요약
+let tickers = {};         // Gate에서 직접 받는 실시간 시세
+let tickersAt = null, snapError = null, tickError = null;
+
+// 최근 N일의 한국시간 날짜 (오늘 포함)
+function dayList(n) {
+  const today = Math.floor((Date.now() / 1000 + KST) / 86400);
+  return Array.from({ length: n }, (_, i) => {
+    const id = today - n + 1 + i, d = new Date(id * 86400000);
+    return { id, label: `${String(d.getUTCMonth() + 1).padStart(2, "0")}/${String(d.getUTCDate()).padStart(2, "0")}` };
+  });
+}
+
+const pct = (a, b) => (a > 0 && b > 0) ? (a / b - 1) * 100 : null;
+
+function buildRows(n) {
+  if (!snap) return [];
+  const i = n - 1, dl = dayList(n);
+  const out = [];
+  for (const [name, s] of Object.entries(snap.contracts)) {
+    const tk = tickers[name];
+    const last = tk ? Number(tk.last) : s.daily[s.daily.length - 1];
+    if (!(last > 0)) continue;
+    const low = Math.min(s.low[i], last), high = Math.max(s.high[i], last);
+    const closes = {};
+    snap.day_ids.forEach((id, k) => { if (s.daily[k] !== null) closes[id] = s.daily[k]; });
+    closes[dl[dl.length - 1].id] = last;                     // 오늘은 현재가
+    const vol24 = tk ? Number(tk.volume_24h_quote) : null;
+    const row = {
+      contract: name, last,
+      change_n: pct(last, s.base[i]),
+      from_low_n: pct(last, low),
+      max_runup_n: pct(Math.max(s.runup[i], last), s.low[i]),
+      from_high_n: pct(last, high),
+      change_24h: tk ? Number(tk.change_percentage) : null,
+      vol_24h: vol24,
+      vol_ratio: vol24 !== null && s.vol_avg ? vol24 / s.vol_avg : null,
+      funding_rate: tk ? Number(tk.funding_rate) * 100 : null,
+      listed_hours: s.listed_h,
+      spark: [...s.spark.slice(-Math.ceil(n * 24 / snap.spark_step_h)), last],
+    };
+    dl.forEach((d, k) => row[`day_${k}`] = closes[d.id] && closes[d.id - 1] ? pct(closes[d.id], closes[d.id - 1]) : null);
+    out.push(row);
+  }
+  return out;
+}
+
+function cols() {
+  const dl = dayList(days());
+  const daily = $("show_daily").value === "1"
+    ? dl.map((d, i) => [`day_${i}`, i === dl.length - 1 ? `${d.label} (오늘)` : d.label]) : [];
+  return [
+    ["contract", "종목"], ["spark", "N일 추이"], ["last", "현재가"], ["rise", "N일 상승률"],
+    ["change_24h", "24h"], ["from_high_n", "N일 고점 대비"], ["vol_24h", "24h 거래대금"],
+    ["vol_ratio", "거래량 배수"], ["funding_rate", "펀딩비"],
+    ...daily,
+  ];
+}
+let sortKey = "rise", sortDir = -1;
+const $ = id => document.getElementById(id);
+
+function loadState() {
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem("gate-screener") || "{}"); } catch {}
+  const st = Object.keys(saved).length ? saved : DEFAULTS;
+  FIELDS.forEach(k => $(k).value = st[k] ?? DEFAULTS[k] ?? "");
+  if (saved._sortKey) { sortKey = saved._sortKey; sortDir = saved._sortDir; }
+}
+function saveState() {
+  const st = { _sortKey: sortKey, _sortDir: sortDir };
+  FIELDS.forEach(k => st[k] = $(k).value);
+  localStorage.setItem("gate-screener", JSON.stringify(st));
+}
+function applyPreset(p) {
+  FIELDS.filter(k => !KEEP.includes(k)).forEach(k => $(k).value = PRESETS[p][k] ?? "");
+  onChange();
+}
+
+const num = id => { const v = $(id).value.trim(); return v === "" ? null : Number(v); };
+const days = () => Math.min(7, Math.max(1, Math.round(num("days") || 5)));
+
+async function loadSnapshot() {
+  try {
+    const r = await fetch(`data.json?t=${Date.now()}`);
+    if (!r.ok) throw new Error(r.status);
+    snap = await r.json(); snapError = null;
+  } catch (e) { snapError = "데이터 파일을 불러오지 못했습니다"; }
+  render();
+}
+async function loadTickers() {
+  if (document.hidden) return;                 // 다른 탭/앱으로 가 있으면 쉼
+  try {
+    const r = await fetch(`${GATE}/tickers`);
+    if (!r.ok) throw new Error(r.status);
+    tickers = Object.fromEntries((await r.json()).map(t => [t.contract, t]));
+    tickersAt = Date.now(); tickError = null;
+  } catch (e) { tickError = "실시간 시세를 받지 못했습니다"; }
+  render();
+}
+
+function onChange() { saveState(); render(); }
+
+function filtered(all) {
+  const basis = $("basis").value, q = $("q").value.trim().toUpperCase();
+  const rng = (v, lo, hi) => (lo === null || (v !== null && v >= lo)) && (hi === null || (v !== null && v <= hi));
+  const lim = Object.fromEntries(["rise_min","rise_max","c24_min","c24_max","vol_min","vr_min","fr_min","fr_max"].map(k => [k, num(k)]));
+  return all.map(r => ({ ...r, rise: r[basis] })).filter(r =>
+    (!q || r.contract.includes(q)) &&
+    rng(r.rise, lim.rise_min, lim.rise_max) &&
+    rng(r.change_24h, lim.c24_min, lim.c24_max) &&
+    rng(r.vol_24h, lim.vol_min, null) &&
+    rng(r.vol_ratio, lim.vr_min, null) &&
+    rng(r.funding_rate, lim.fr_min, lim.fr_max));
+}
+
+const fmtPct = v => v === null || v === undefined ? '<span class="muted">–</span>'
+  : `<span class="${v > 0 ? "up" : v < 0 ? "down" : ""}">${v > 0 ? "+" : ""}${v.toFixed(v !== 0 && Math.abs(v) < 1 ? 2 : 1)}%</span>`;
+const fmtPrice = v => v >= 1000 ? v.toLocaleString("en-US", { maximumFractionDigits: 1 })
+  : v >= 1 ? v.toLocaleString("en-US", { maximumFractionDigits: 4 })
+  : v.toFixed(Math.min(20, 3 - Math.floor(Math.log10(v)))).replace(/0+$/, "");
+const fmtVol = v => v >= 1e9 ? (v/1e9).toFixed(2)+"B" : v >= 1e6 ? (v/1e6).toFixed(2)+"M" : v >= 1e3 ? (v/1e3).toFixed(1)+"K" : v.toFixed(0);
+
+function spark(pts) {
+  if (!pts || pts.length < 2) return "";
+  const w = 90, h = 26, lo = Math.min(...pts), hi = Math.max(...pts), span = hi - lo || 1;
+  const d = pts.map((p, i) => `${(i/(pts.length-1)*w).toFixed(1)},${(h-2-(p-lo)/span*(h-4)).toFixed(1)}`).join(" ");
+  const color = pts[pts.length-1] >= pts[0] ? "var(--up)" : "var(--down)";
+  return `<svg class="spark" width="${w}" height="${h}"><polyline points="${d}" fill="none" stroke="${color}" stroke-width="1.5"/></svg>`;
+}
+
+function render() {
+  const n = days();
+  const COLS = cols();
+  const all = buildRows(n);
+  if (!COLS.some(([k]) => k === sortKey)) { sortKey = "rise"; sortDir = -1; }
+  const name = label => label.replace("N일", n + "일");
+  $("sort").innerHTML = COLS.filter(([k]) => k !== "spark")
+    .map(([k, label]) => `<option value="${k}">${name(label)}</option>`).join("");
+  $("sort").value = sortKey;
+  $("dir").value = String(sortDir);
+  $("head").innerHTML = COLS.map(([k, label]) =>
+    `<th data-k="${k}" class="${k === sortKey ? "sorted" : ""}">${name(label)}${k === sortKey ? (sortDir < 0 ? " ▼" : " ▲") : ""}</th>`).join("");
+  document.querySelectorAll("th[data-k]").forEach(th => th.onclick = () => {
+    const k = th.dataset.k; if (k === "spark") return;
+    sortDir = k === sortKey ? -sortDir : (k === "contract" ? 1 : -1); sortKey = k; saveState(); render();
+  });
+
+  const rows = filtered(all).sort((a, b) => {
+    const x = a[sortKey], y = b[sortKey];
+    if (x === null || x === undefined) return 1;
+    if (y === null || y === undefined) return -1;
+    return (typeof x === "string" ? x.localeCompare(y) : x - y) * sortDir;
+  });
+
+  $("body").innerHTML = rows.length ? rows.slice(0, 500).map(r => `<tr>
+    <td><a href="https://www.gate.com/futures/USDT/${r.contract}" target="_blank" rel="noopener">${r.contract.replace("_USDT", "")}</a>${r.listed_hours < n * 24 ? `<span class="new">신규 ${Math.floor(r.listed_hours/24)}일</span>` : ""}</td>
+    <td class="spark">${spark(r.spark)}</td>
+    <td>${fmtPrice(r.last)}</td>
+    <td>${fmtPct(r.rise)}</td>
+    <td>${fmtPct(r.change_24h)}</td>
+    <td>${fmtPct(r.from_high_n)}</td>
+    <td>${r.vol_24h === null ? '<span class="muted">–</span>' : fmtVol(r.vol_24h)}</td>
+    <td>${r.vol_ratio === null ? '<span class="muted">–</span>' : r.vol_ratio.toFixed(1) + "x"}</td>
+    <td>${fmtPct(r.funding_rate)}</td>
+    ${COLS.filter(([k]) => k.startsWith("day_")).map(([k], i) => `<td class="${i === 0 ? "daystart" : ""}">${fmtPct(r[k])}</td>`).join("")}
+  </tr>`).join("") : `<tr><td colspan="${COLS.length}" class="empty">${all.length ? "조건에 맞는 종목이 없습니다." : "불러오는 중…"}</td></tr>`;
+
+  const lab = { rise_min: `${n}일↑`, rise_max: `${n}일↓`, c24_min: "24h↑", c24_max: "24h↓", vol_min: "거래대금≥",
+                vr_min: "거래량배수≥", fr_min: "펀딩≥", fr_max: "펀딩≤" };
+  const active = Object.keys(lab).filter(k => num(k) !== null).map(k => `${lab[k]} ${num(k)}`);
+  $("cond_summary").textContent = active.length ? `· ${active.join(", ")}` : "· 조건 없음";
+  $("summary").innerHTML = `전체 <b>${all.length}</b>개 중 <b>${rows.length}</b>개 종목` + (rows.length > 500 ? " (상위 500개 표시)" : "");
+  const parts = [];
+  if (snap) {
+    const mins = Math.round((Date.now() / 1000 - snap.generated_at) / 60);
+    const t = new Date(snap.generated_at * 1000).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
+    parts.push(`기간 데이터 ${t} (${mins}분 전)`);
+  }
+  if (tickersAt) parts.push(`현재가 ${new Date(tickersAt).toLocaleTimeString("ko-KR")}`);
+  if (snapError) parts.push(snapError);
+  if (tickError) parts.push(tickError);
+  $("status").textContent = parts.join(" · ") || "불러오는 중…";
+}
+
+loadState();
+if (window.innerWidth <= 700) $("cond").open = false;   // 휴대폰에서는 조건 영역을 접어서 시작
+FIELDS.forEach(k => $(k).addEventListener("input", onChange));
+$("sort").addEventListener("input", () => {
+  sortKey = $("sort").value; sortDir = sortKey === "contract" ? 1 : -1; saveState(); render();
+});
+$("dir").addEventListener("input", () => { sortDir = Number($("dir").value); saveState(); render(); });
+document.querySelectorAll("[data-preset]").forEach(b => b.onclick = () => applyPreset(b.dataset.preset));
+loadSnapshot(); loadTickers();
+setInterval(loadSnapshot, 5 * 60 * 1000);
+setInterval(loadTickers, 20 * 1000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) loadTickers(); });
+</script>
+</body>
+</html>
