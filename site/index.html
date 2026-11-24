@@ -6,119 +6,160 @@
 <title>Gate 선물 스크리너</title>
 <style>
   :root {
-    --bg: #f7f7f8; --panel: #fff; --text: #17181a; --muted: #6b6f76; --line: #e4e5e8;
-    --up: #d6336c; --down: #1c7ed6; --accent: #2f6fed; --chip: #eef1f6;
+    --page: #ffffff; --bar: #1f2b38; --bar-text: #ffffff; --bar-muted: #a9b4c0;
+    --box: #ffffff; --box-head: #e3e8ee; --line: #c4ccd5; --line-soft: #dde2e8;
+    --text: #1b2430; --muted: #66717e; --link: #1446a0;
+    --th: #dce2e9; --zebra: #f4f6f8; --hover: #fff6cc;
+    --up: #d10f0f; --down: #0b4fc4;
+    --tab: #eef1f4; --tab-on: #1f2b38; --tab-on-text: #ffffff;
+    --input: #ffffff; --input-line: #a8b2bd;
   }
   @media (prefers-color-scheme: dark) {
-    :root { --bg: #111214; --panel: #1a1b1e; --text: #e8e9eb; --muted: #8b9098; --line: #2a2c30;
-            --up: #ff6b8b; --down: #5aa9ff; --accent: #6b9bff; --chip: #24262b; }
+    :root {
+      --page: #0e1318; --bar: #070a0d; --bar-text: #e6ebf0; --bar-muted: #7f8b97;
+      --box: #141a21; --box-head: #1b232c; --line: #2c3743; --line-soft: #222b35;
+      --text: #d3dae2; --muted: #8592a0; --link: #79acff;
+      --th: #1b232c; --zebra: #11171d; --hover: #2a2a1c;
+      --up: #ff4f4f; --down: #4f9dff;
+      --tab: #1b232c; --tab-on: #d3dae2; --tab-on-text: #0e1318;
+      --input: #0e1318; --input-line: #3a4654;
+    }
   }
   * { box-sizing: border-box; }
-  body { margin: 0; font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Segoe UI", sans-serif;
-         background: var(--bg); color: var(--text); }
-  header { display: flex; align-items: baseline; gap: 12px; padding: 18px 24px 6px; flex-wrap: wrap; }
-  h1 { font-size: 18px; margin: 0; }
-  #status { color: var(--muted); font-size: 13px; }
-  .wrap { padding: 0 24px 40px; }
-  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin: 10px 0 14px; }
-  .filters { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px 16px; }
-  label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
-  .pair { display: flex; gap: 6px; }
-  input, select { font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line);
-                  border-radius: 6px; padding: 6px 8px; width: 100%; min-width: 0; }
-  input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
-  .presets { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; align-items: center; }
-  .presets span { font-size: 12px; color: var(--muted); margin-right: 4px; }
-  button { font: inherit; font-size: 13px; border: 1px solid var(--line); background: var(--chip); color: var(--text);
-           border-radius: 999px; padding: 4px 12px; cursor: pointer; }
-  button:hover { border-color: var(--accent); }
-  .summary { margin: 0 2px 8px; color: var(--muted); font-size: 13px; }
+  body { margin: 0; background: var(--page); color: var(--text);
+         font: 12px/1.35 Arial, "Helvetica Neue", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; }
+
+  /* 상단 바 */
+  .topbar { background: var(--bar); color: var(--bar-text); display: flex; align-items: center;
+            gap: 14px; padding: 7px 12px; flex-wrap: wrap; }
+  .topbar h1 { margin: 0; font-size: 13px; font-weight: bold; letter-spacing: .06em; text-transform: uppercase; }
+  .topbar h1 span { color: var(--bar-muted); font-weight: normal; letter-spacing: 0; text-transform: none; margin-left: 6px; }
+  #status { color: var(--bar-muted); font-size: 11px; margin-left: auto; }
+
+  .wrap { padding: 8px 12px 30px; }
+
+  /* 필터 박스 */
+  .box { border: 1px solid var(--line); background: var(--box); margin-bottom: 8px; }
+  .box > summary { background: var(--box-head); border-bottom: 1px solid var(--line); padding: 4px 8px;
+                   font-weight: bold; cursor: pointer; list-style: none; user-select: none; }
+  .box:not([open]) > summary { border-bottom: none; }
+  .box > summary::-webkit-details-marker { display: none; }
+  .box > summary::after { content: "▲ 접기"; float: right; font-weight: normal; color: var(--muted); font-size: 11px; }
+  .box:not([open]) > summary::after { content: "▼ 펼치기"; }
+  #cond_summary { font-weight: normal; color: var(--muted); margin-left: 8px; }
+  .filters { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+             gap: 0 16px; padding: 6px 8px; }
+  .f { display: grid; grid-template-columns: 104px 1fr; align-items: center; gap: 6px;
+       padding: 3px 0; border-bottom: 1px dotted var(--line-soft); }
+  .f > span { color: var(--muted); text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pair { display: flex; gap: 4px; align-items: center; }
+  .pair i { color: var(--muted); font-style: normal; }
+  input, select { font: inherit; color: var(--text); background: var(--input); border: 1px solid var(--input-line);
+                  border-radius: 0; height: 21px; padding: 0 4px; width: 100%; min-width: 0; }
+  input:focus, select:focus { outline: 1px solid var(--link); outline-offset: 0; }
+
+  /* 빠른 조건 탭 */
+  .tabs { display: flex; flex-wrap: wrap; gap: 0; border-top: 1px solid var(--line); padding: 6px 8px 0;
+          background: var(--box-head); }
+  .tabs button { font: inherit; color: var(--text); background: var(--tab); border: 1px solid var(--line);
+                 border-bottom: none; margin: 0 -1px 0 0; padding: 4px 10px; cursor: pointer; border-radius: 0; }
+  .tabs button:hover { text-decoration: underline; }
+  .tabs button.on { background: var(--tab-on); color: var(--tab-on-text); border-color: var(--tab-on); }
+
+  /* 결과 */
+  .summary { padding: 3px 1px 5px; color: var(--muted); }
   .summary b { color: var(--text); }
-  table { width: 100%; border-collapse: collapse; background: var(--panel); }
-  th, td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
-  th { font-size: 12px; color: var(--muted); font-weight: 600; cursor: pointer; user-select: none; position: sticky; top: 0; background: var(--panel); }
-  th.sorted { color: var(--text); }
+  .tablewrap { overflow-x: auto; border: 1px solid var(--line); }
+  table { width: 100%; border-collapse: collapse; background: var(--box); }
+  th, td { padding: 3px 7px; border: 1px solid var(--line-soft); text-align: right; white-space: nowrap; }
+  th { background: var(--th); border-color: var(--line); font-weight: bold; font-size: 11px; color: var(--text);
+       cursor: pointer; user-select: none; position: sticky; top: 0; }
+  th:hover { text-decoration: underline; }
+  th.sorted { background: var(--bar); color: var(--bar-text); }
   th:first-child, td:first-child { text-align: left; }
   td { font-variant-numeric: tabular-nums; }
-  tr:hover td { background: var(--chip); }
-  a { color: var(--text); text-decoration: none; font-weight: 600; }
-  a:hover { color: var(--accent); }
+  tbody tr:nth-child(even) td { background: var(--zebra); }
+  tbody tr:hover td { background: var(--hover); }
+  a { color: var(--link); text-decoration: none; font-weight: bold; }
+  a:hover { text-decoration: underline; }
   .up { color: var(--up); } .down { color: var(--down); } .muted { color: var(--muted); }
-  .new { font-size: 11px; color: var(--muted); font-weight: 400; margin-left: 4px; }
-  .empty { text-align: center; color: var(--muted); padding: 40px; }
-  svg.spark { vertical-align: middle; }
-  .tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
-  tbody tr:last-child td { border-bottom: none; }
-  td.daystart { border-left: 1px solid var(--line); }
-  details > summary { cursor: pointer; font-weight: 600; font-size: 13px; list-style: none; }
-  details > summary::-webkit-details-marker { display: none; }
-  details > summary::before { content: "▸ "; color: var(--muted); }
-  details[open] > summary::before { content: "▾ "; }
-  details[open] > summary { margin-bottom: 12px; }
-  #cond_summary { font-weight: 400; color: var(--muted); margin-left: 6px; }
+  .new { font-size: 10px; color: var(--muted); font-weight: normal; margin-left: 4px; }
+  .empty { text-align: center; color: var(--muted); padding: 30px; }
+  svg.spark { vertical-align: middle; display: block; }
+  td.spark { padding: 1px 6px; }
+  td.daystart, th.daystart { border-left: 2px solid var(--line); }
+
   /* 첫 열(종목) 고정: 가로 스크롤해도 종목명이 보이게 */
-  th:first-child, td:first-child { position: sticky; left: 0; background: var(--panel); z-index: 1; }
-  th:first-child { z-index: 2; }
-  tr:hover td:first-child { background: var(--chip); }
+  th:first-child, td:first-child { position: sticky; left: 0; z-index: 1; background: var(--box); }
+  th:first-child { z-index: 2; background: var(--th); }
+  th.sorted:first-child { background: var(--bar); }
+
   @media (max-width: 700px) {
-    header { padding: 12px 12px 4px; }
-    .wrap { padding: 0 12px 30px; }
-    .filters { grid-template-columns: 1fr 1fr; gap: 8px 10px; }
-    th, td { padding: 7px 8px; font-size: 13px; }
+    .wrap { padding: 6px 6px 24px; }
+    .filters { grid-template-columns: 1fr; }
+    .f { grid-template-columns: 92px 1fr; }
+    th, td { padding: 4px 6px; }
     th[data-k="spark"], td.spark { display: none; }
+    #status { margin-left: 0; width: 100%; }
   }
 </style>
 </head>
 <body>
-<header>
-  <h1>Gate USDT 선물 스크리너</h1>
+<div class="topbar">
+  <h1>Gate Futures Screener<span>USDT 무기한 선물</span></h1>
   <div id="status">불러오는 중…</div>
-</header>
+</div>
 <div class="wrap">
-  <details class="panel" id="cond" open>
-    <summary>조건 설정<span id="cond_summary"></span></summary>
+  <details class="box" id="cond" open>
+    <summary>필터<span id="cond_summary"></span></summary>
     <div class="filters">
-      <label>기간 (일)
-        <input id="days" type="number" min="1" max="7" step="1" value="5">
+      <label class="f"><span>기간</span>
+        <select id="days"><option value="1">1일</option><option value="2">2일</option><option value="3">3일</option><option value="4">4일</option><option value="5">5일</option><option value="6">6일</option><option value="7">7일</option></select>
       </label>
-      <label>상승률 기준
+      <label class="f"><span>상승률 기준</span>
         <select id="basis">
-          <option value="change_n">N일 전 가격 대비 현재</option>
-          <option value="from_low_n">N일 내 저점 대비 현재</option>
-          <option value="max_runup_n">N일 내 저점→고점 최대 상승</option>
+          <option value="change_n">N일 전 가격 대비</option>
+          <option value="from_low_n">N일 저점 대비</option>
+          <option value="max_runup_n">N일 저점→고점 최대</option>
         </select>
       </label>
-      <label>N일 상승률 (%)
-        <div class="pair"><input id="rise_min" type="number" placeholder="최소"><input id="rise_max" type="number" placeholder="최대"></div>
+      <div class="f"><span>N일 상승률 %</span>
+        <div class="pair"><input id="rise_min" type="number" placeholder="최소"><i>~</i><input id="rise_max" type="number" placeholder="최대"></div>
+      </div>
+      <div class="f"><span>24h 변동률 %</span>
+        <div class="pair"><input id="c24_min" type="number" placeholder="최소"><i>~</i><input id="c24_max" type="number" placeholder="최대"></div>
+      </div>
+      <label class="f"><span>24h 거래대금 ≥</span>
+        <select id="vol_min">
+          <option value="">전체</option><option value="100000">100K USDT</option><option value="500000">500K USDT</option>
+          <option value="1000000">1M USDT</option><option value="5000000">5M USDT</option><option value="10000000">10M USDT</option>
+          <option value="50000000">50M USDT</option><option value="100000000">100M USDT</option>
+        </select>
       </label>
-      <label>24시간 변동률 (%)
-        <div class="pair"><input id="c24_min" type="number" placeholder="최소"><input id="c24_max" type="number" placeholder="최대"></div>
+      <label class="f"><span>거래량 배수 ≥</span>
+        <select id="vr_min">
+          <option value="">전체</option><option value="1.5">1.5배</option><option value="2">2배</option>
+          <option value="3">3배</option><option value="5">5배</option><option value="10">10배</option>
+        </select>
       </label>
-      <label>24시간 거래대금 최소 (USDT)
-        <input id="vol_min" type="number" min="0" placeholder="예: 1000000">
-      </label>
-      <label>거래량 배수 최소 (직전 7일 평균 대비)
-        <input id="vr_min" type="number" min="0" step="0.1" placeholder="예: 3">
-      </label>
-      <label>펀딩비 (%)
-        <div class="pair"><input id="fr_min" type="number" step="0.01" placeholder="최소"><input id="fr_max" type="number" step="0.01" placeholder="최대"></div>
-      </label>
-      <label>종목 검색
+      <div class="f"><span>펀딩비 %</span>
+        <div class="pair"><input id="fr_min" type="number" step="0.01" placeholder="최소"><i>~</i><input id="fr_max" type="number" step="0.01" placeholder="최대"></div>
+      </div>
+      <label class="f"><span>종목</span>
         <input id="q" type="text" placeholder="예: BTC">
       </label>
-      <label>정렬
-        <div class="pair"><select id="sort"></select><select id="dir"><option value="-1">높은 순</option><option value="1">낮은 순</option></select></div>
-      </label>
-      <label>일별 상승률 (한국시간 자정 기준)
-        <select id="show_daily"><option value="1">표시</option><option value="0">숨김</option></select>
+      <div class="f"><span>정렬</span>
+        <div class="pair"><select id="sort"></select><select id="dir" style="width:72px;flex:none"><option value="-1">높은순</option><option value="1">낮은순</option></select></div>
+      </div>
+      <label class="f"><span>일별 상승률</span>
+        <select id="show_daily"><option value="1">표시 (KST 자정 기준)</option><option value="0">숨김</option></select>
       </label>
     </div>
-    <div class="presets">
-      <span>빠른 조건</span>
-      <button data-preset="rise100">5일 100%↑</button>
-      <button data-preset="volspike">거래량 3배↑ + 24h +10%↑</button>
-      <button data-preset="dump">24h -15%↓</button>
-      <button data-preset="clear">조건 초기화</button>
+    <div class="tabs">
+      <button data-preset="rise100">5일 +100%</button>
+      <button data-preset="volspike">거래량 3배 · 24h +10%</button>
+      <button data-preset="dump">24h -15%</button>
+      <button data-preset="clear">전체 종목</button>
     </div>
   </details>
 
@@ -284,7 +325,7 @@ function render() {
   $("sort").value = sortKey;
   $("dir").value = String(sortDir);
   $("head").innerHTML = COLS.map(([k, label]) =>
-    `<th data-k="${k}" class="${k === sortKey ? "sorted" : ""}">${name(label)}${k === sortKey ? (sortDir < 0 ? " ▼" : " ▲") : ""}</th>`).join("");
+    `<th data-k="${k}" class="${[k === sortKey ? "sorted" : "", k === "day_0" ? "daystart" : ""].join(" ")}">${name(label)}${k === sortKey ? (sortDir < 0 ? " ▼" : " ▲") : ""}</th>`).join("");
   document.querySelectorAll("th[data-k]").forEach(th => th.onclick = () => {
     const k = th.dataset.k; if (k === "spark") return;
     sortDir = k === sortKey ? -sortDir : (k === "contract" ? 1 : -1); sortKey = k; saveState(); render();
@@ -310,10 +351,16 @@ function render() {
     ${COLS.filter(([k]) => k.startsWith("day_")).map(([k], i) => `<td class="${i === 0 ? "daystart" : ""}">${fmtPct(r[k])}</td>`).join("")}
   </tr>`).join("") : `<tr><td colspan="${COLS.length}" class="empty">${all.length ? "조건에 맞는 종목이 없습니다." : "불러오는 중…"}</td></tr>`;
 
-  const lab = { rise_min: `${n}일↑`, rise_max: `${n}일↓`, c24_min: "24h↑", c24_max: "24h↓", vol_min: "거래대금≥",
-                vr_min: "거래량배수≥", fr_min: "펀딩≥", fr_max: "펀딩≤" };
-  const active = Object.keys(lab).filter(k => num(k) !== null).map(k => `${lab[k]} ${num(k)}`);
-  $("cond_summary").textContent = active.length ? `· ${active.join(", ")}` : "· 조건 없음";
+  const lab = { rise_min: v => `${n}일 ≥ ${v}%`, rise_max: v => `${n}일 ≤ ${v}%`, c24_min: v => `24h ≥ ${v}%`,
+                c24_max: v => `24h ≤ ${v}%`, vol_min: v => `거래대금 ≥ ${fmtVol(v)}`, vr_min: v => `거래량 ≥ ${v}배`,
+                fr_min: v => `펀딩 ≥ ${v}%`, fr_max: v => `펀딩 ≤ ${v}%` };
+  const active = Object.keys(lab).filter(k => num(k) !== null).map(k => lab[k](num(k)));
+  $("cond_summary").textContent = active.length ? `— ${active.join(" · ")}` : "— 조건 없음";
+  document.querySelectorAll("[data-preset]").forEach(b => {
+    const p = PRESETS[b.dataset.preset];
+    b.classList.toggle("on", FIELDS.filter(k => !KEEP.includes(k) && k !== "q")
+      .every(k => ($(k).value || "") === (p[k] ?? "")) && !$("q").value);
+  });
   $("summary").innerHTML = `전체 <b>${all.length}</b>개 중 <b>${rows.length}</b>개 종목` + (rows.length > 500 ? " (상위 500개 표시)" : "");
   const parts = [];
   if (snap) {
