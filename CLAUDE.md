@@ -17,6 +17,10 @@ Gate.io USDT 무기한 선물 전 종목(약 1,000개)을 조건으로 거르는
 - `.github/workflows/update.yml` — `build` 작업(수집 + Pages 아티팩트 업로드)과
   `deploy` 작업(배포)을 **분리**해 둠. 한 작업 안에서 업로드 직후 배포하면
   "No artifacts named github-pages" 오류가 간헐적으로 났기 때문. 다시 합치지 말 것.
+- 2026-11-24 첫 커밋의 옛 실행이 GitHub에서 "Re-run" 되어 첫 버전 화면이 최신을 덮어쓴 일이 있었음.
+  그래서 deploy 작업은 main 최신 커밋일 때만 배포함. 단, 이 검사가 들어간 커밋(e7b1444) **이전** 실행을
+  재실행하면 여전히 옛 버전이 배포되므로, 사용자에게 옛 실행은 Re-run 하지 말고 수동 실행은
+  Actions → "Run workflow"(workflow_dispatch)로 하라고 안내할 것.
 - `site/data.json`은 git에 올리지 않음(.gitignore). Actions가 매번 생성.
 
 ## 지표 정의
