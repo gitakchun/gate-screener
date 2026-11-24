@@ -183,6 +183,10 @@ const PRESETS = {
   clear:    { days: "5", basis: "change_n" },
 };
 const GATE = "https://api.gateio.ws/api/v4/futures/usdt";
+// 휴대폰: www 없는 gate.com 주소를 같은 탭으로 열어야 Gate 앱이 바로 열림 (아이폰에서 확인)
+// 컴퓨터: 새 탭으로 열기
+const TOUCH = matchMedia("(pointer: coarse)").matches;
+const LINK_TARGET = TOUCH ? "" : ' target="_blank" rel="noopener"';
 const KST = 9 * 3600;
 let snap = null;          // data.json: GitHub Actions가 만든 시간봉 요약
 let tickers = {};         // Gate에서 직접 받는 실시간 시세
@@ -339,7 +343,7 @@ function render() {
   });
 
   $("body").innerHTML = rows.length ? rows.slice(0, 500).map(r => `<tr>
-    <td><a href="https://www.gate.com/futures/USDT/${r.contract}" target="_blank" rel="noopener">${r.contract.replace("_USDT", "")}</a>${r.listed_hours < n * 24 ? `<span class="new">신규 ${Math.floor(r.listed_hours/24)}일</span>` : ""}</td>
+    <td><a href="https://gate.com/futures/USDT/${r.contract}"${LINK_TARGET}>${r.contract.replace("_USDT", "")}</a>${r.listed_hours < n * 24 ? `<span class="new">신규 ${Math.floor(r.listed_hours/24)}일</span>` : ""}</td>
     <td class="spark">${spark(r.spark)}</td>
     <td>${fmtPrice(r.last)}</td>
     <td>${fmtPct(r.rise)}</td>
