@@ -1,11 +1,13 @@
 name: 데이터 갱신 및 배포
 
 on:
+  # 10분 주기 실행은 외부 서비스(cron-job.org)가 아래 workflow_dispatch를 호출해서 함.
+  # GitHub 자체 예약은 잘 안 돌아서 1시간 간격 백업으로만 둠.
   schedule:
-    - cron: "*/10 * * * *"   # 10분마다 (GitHub 사정으로 실제로는 몇 분~수십 분 늦을 수 있음)
+    - cron: "17 * * * *"
   push:
     branches: [main]
-  workflow_dispatch:          # Actions 탭에서 수동 실행
+  workflow_dispatch:          # cron-job.org 호출 + Actions 탭 "Run workflow" 수동 실행
 
 permissions:
   contents: read

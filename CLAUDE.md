@@ -43,12 +43,12 @@ Gate.io USDT 무기한 선물 전 종목(약 1,000개)을 조건으로 거르는
 
 ## 미해결
 
-- **10분마다 예약 실행(cron)이 아직 한 번도 돌지 않음** (2026-11-24 저장소 생성 후 1시간 넘게 0회,
-  push 때만 실행됨). 사용자는 좀 더 기다려 보기로 함.
-  계속 안 돌면 대안: cron-job.org 등 외부 서비스가 10분마다
-  `POST /repos/gitakchun/gate-screener/actions/workflows/update.yml/dispatches`를 호출하게 설정
-  (사용자가 GitHub 토큰을 직접 만들어 넣어야 함. 토큰은 사용자가 입력하게 할 것).
-  확인: `gh run list --json event,createdAt` 에서 event가 `schedule`인 실행이 있는지.
+- 10분 주기 갱신은 **cron-job.org**(사용자 계정)가 10분마다
+  `POST https://api.github.com/repos/gitakchun/gate-screener/actions/workflows/update.yml/dispatches`
+  (본문 `{"ref":"main"}`, 사용자가 만든 fine-grained 토큰: 이 저장소만, Actions 읽기·쓰기)를 호출해서 함.
+  GitHub 자체 cron은 저장소 생성 후 5시간 넘게 한 번도 안 돌아서 1시간 백업(`17 * * * *`)으로만 둠.
+  확인: `gh run list --json event,createdAt` 에서 `workflow_dispatch` 실행이 10분 간격으로 있는지.
+  토큰은 만료일이 있으므로(최대 1년) 만료되면 갱신이 멈춤 → 사용자가 새 토큰을 만들어 cron-job.org에 다시 넣어야 함.
 - 공개 저장소는 60일간 커밋이 없으면 GitHub가 예약 실행을 멈춤.
 
 ## 작업 방법
